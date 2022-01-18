@@ -4,6 +4,9 @@
 
 Please follow the link for the complete training catalog: https://www.deepcloudlabs.com/resources
 
+# Employee Index Page
+![github](employee.png)
+
 # Game Index Page
 ![github](game.png)
 
