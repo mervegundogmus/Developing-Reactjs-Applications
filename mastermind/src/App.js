@@ -1,17 +1,29 @@
 import React from "react";
 import Move from "./move";
+import Badge from "./component/badge";
+import GameStatistics from "./component/game-statistics";
 
 // Stateful Component
 class App extends React.PureComponent {
     constructor(props, context) {
         super(props, context);
         this.state = {
-            secret: this.createSecret(3),
-            level: 3,
-            tries: 0,
-            guess: 123,
-            moves: [],
-            counter: 60
+            game: {
+                secret: this.createSecret(3),
+                level: 3,
+                tries: 0,
+                guess: 123,
+                moves: [],
+                counter: 60,
+                lives: 3
+            },
+            statistics: {
+                wins: 0,
+                loses: 0,
+                total: 0,
+                totalWinsMoves: 0,
+                avgWinsMoves: 0
+            }
         };
     }
 
@@ -23,27 +35,13 @@ class App extends React.PureComponent {
             if (!numbers.includes(digit))
                 numbers.push(digit);
         }
-        return numbers.reduce((number, digit) => 10 * number + digit, 0);
+        let secret = numbers.reduce((number, digit) => 10 * number + digit, 0);
+        console.log(secret)
+        return secret;
     }
 
     createDigit = (min, max) => {
         return Math.floor(Math.random() * (max - min + 1) + min);
-    }
-
-    play = () => {
-        let game = {...this.state}
-        if (game.secret === game.guess) {
-            game.level++;
-            game.counter = 60;
-            game.tries = 0;
-            game.moves = []
-            game.secret = this.createSecret(game.level);
-        } else {
-            game.tries++;
-            let message = this.createMessage(game.guess, game.secret);
-            game.moves.push(new Move(game.guess, message));
-        }
-        this.setState(game);
     }
 
     createMessage = (guess, secret) => {
@@ -66,36 +64,82 @@ class App extends React.PureComponent {
         if (perfectMatch === 0 && partialMatch === 0)
             return "No match";
         let message = "";
-        if (partialMatch>0)
+        if (partialMatch > 0)
             message = `-${partialMatch}`;
-        if (perfectMatch>0)
+        if (perfectMatch > 0)
             message += `+${perfectMatch}`;
         return message;
     }
+    //endregion
 
-    countDown = () => {
-        let game = {...this.state}
-        if (game.counter <= 0) {
+    // region action methods
+    play = () => {
+        let game = {...this.state.game}
+        let statistics = {...this.state.statistics}
+        if (game.secret === game.guess) {
+            if (game.level === 10) {
+                statistics.wins++;
+                statistics.total++;
+                statistics.totalWinsMoves += game.tries;
+                statistics.avgWinsMoves = statistics.totalWinsMoves / statistics.wins;
+                this.props.history.push("/wins");
+                return;
+            }
+            game.level++;
             game.counter = 60;
             game.tries = 0;
             game.moves = []
+            game.lives = 3;
             game.secret = this.createSecret(game.level);
+        } else {
+            game.tries++;
+            let message = this.createMessage(game.guess, game.secret);
+            game.moves.push(new Move(game.guess, message));
+        }
+        localStorage.setItem("mastermind-game-state", JSON.stringify({game, statistics}));
+        this.setState({game, statistics});
+    }
+
+    countDown = () => {
+        let game = {...this.state.game}
+        let statistics = {...this.state.statistics}
+        if (game.counter <= 0) {
+            if (game.lives === 0) {
+                this.props.history.push("/loses");
+                statistics.loses++;
+            } else {
+                game.lives--;
+                game.counter = 60;
+                game.tries = 0;
+                game.moves = []
+                game.secret = this.createSecret(game.level);
+            }
         } else {
             game.counter = game.counter - 1;
         }
-        this.setState(game);
+        localStorage.setItem("mastermind-game-state", JSON.stringify({game, statistics}));
+        this.setState({game, statistics});
     }
 
     handleChange = (event) => {
-        let game = {...this.state}
+        let game = {...this.state.game}
         game.guess = Number(event.target.value);
-        this.setState(game);
-    }
-
-    componentDidMount() {
-        setInterval(this.countDown, 1000);
+        this.setState({game});
     }
     //endregion
+
+    //region lifecycle callback methods
+    componentDidMount() {
+        let gameState = localStorage.getItem("mastermind-game-state");
+        if (gameState === null || gameState === undefined) {
+            let state = {...this.state};
+            localStorage.setItem("mastermind-game-state", JSON.stringify(state));
+        } else {
+            let state = JSON.parse(gameState);
+            this.setState(state);
+        }
+        setInterval(this.countDown, 1000);
+    }
 
     render = () => {
         return (
@@ -105,27 +149,24 @@ class App extends React.PureComponent {
                         <h3 className="card-title">Game Console</h3>
                     </div>
                     <div className="card-body">
-                        <div className="form-group">
-                            <label className="form-label" htmlFor="gamelevel">Game Level:</label>
-                            <span id="gamelevel"
-                                  className="badge alert-info">{this.state.level}</span>
-                        </div>
-                        <div className="form-group">
-                            <label className="form-label" htmlFor="tries">Tries:</label>
-                            <span id="tries"
-                                  className="badge alert-primary">{this.state.tries}</span>
-                        </div>
-                        <div className="form-group">
-                            <label className="form-label" htmlFor="counter">Counter:</label>
-                            <span id="counter"
-                                  className="badge alert-danger">{this.state.counter}</span>
-                        </div>
+                        <Badge className="alert-info"
+                               label="Game Level"
+                               id="gamelevel"
+                               value={this.state.game.level}></Badge>
+                        <Badge className="alert-primary"
+                               label="Tries"
+                               id="tries"
+                               value={this.state.game.tries}></Badge>
+                        <Badge className="alert-danger"
+                               label="Counter"
+                               id="counter"
+                               value={this.state.game.counter}></Badge>
                         <div className="form-group">
                             <label className="form-label" htmlFor="guess">Guess:</label>
                             <div className="input-group mb-3">
                                 <input type="text"
                                        id="counter"
-                                       value={this.state.guess}
+                                       value={this.state.game.guess}
                                        onChange={this.handleChange}
                                        className="form-control"></input>
                                 <div className="input-group-append">
@@ -153,9 +194,9 @@ class App extends React.PureComponent {
                             </thead>
                             <tbody>
                             {
-                                this.state.moves.map((move,index) =>
+                                this.state.game.moves.map((move, index) =>
                                     <tr key={move.guess + index.toString()}>
-                                        <td>{index+1}</td>
+                                        <td>{index + 1}</td>
                                         <td>{move.guess}</td>
                                         <td>{move.message}</td>
                                     </tr>
@@ -165,9 +206,12 @@ class App extends React.PureComponent {
                         </table>
                     </div>
                 </div>
+                <p></p>
+                <GameStatistics stats={this.state.statistics}></GameStatistics>
             </div>
         );
     }
+    //endregion
 
 }
 
