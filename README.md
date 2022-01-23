@@ -4,12 +4,6 @@
 
 Please follow the link for the complete training catalog: https://www.deepcloudlabs.com/resources
 
-# Employee Index Page
-![github](employee.png)
-
-# Game Index Page
-![github](game.png)
-
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
